@@ -1,0 +1,101 @@
+service: perdirPizzas
+
+# The plugins are installed with NPM and declared here.
+# this is a example of autoscaling DynaDB plugin.
+# we don't used, only let the config for reference.
+# for more information check the next video and the github repository from de plugin:
+# Video: https://www.youtube.com/watch?v=HVQVEjNpMeQ&feature=youtu.be
+# GitHub: https://github.com/sbstjn/serverless-dynamodb-autoscaling
+
+#plugins:
+#  - serverless-dynamodb-autoscaling
+#
+#custom:
+#  capacities:
+#    - table: CompletedOrdersTable  # DynamoDB Resource
+#      index:              # List or single index name
+#        - custom-index-name
+#      read:
+#        minimum: 5        # Minimum read capacity
+#        maximum: 1000     # Maximum read capacity
+#        usage: 0.75       # Targeted usage percentage
+#      write:
+#        minimum: 40       # Minimum write capacity
+#        maximum: 200      # Maximum write capacity
+#        usage: 0.5        # Targeted usage percentage
+
+
+
+provider: # The Serverless config
+  name: aws
+  runtime: nodejs10.x # minim version available in AWS Node lambada
+  region: us-west-1 # Only for test purpose, you can choose other region
+  environment: # definition of environment variables. We used in the entire YML file and in the JS files using "process.env.VARIABLE"
+    REGION: ${self:provider.region} # example of how to access to some attribute in the same YML file
+    PENDING_ORDER_QUEUE: # in JS file we can access using: process.env.PENDING_ORDER_QUEUE check handler.js
+      Ref: PendingOrdersQueue # this is an example of how to use a Queue to communicate lambdas.
+    PENDING_ORDER_QUEUE_NAME: PendingOrdersQueue # variable used to referer the Queue resource used in the resource block (The final block)
+    COMPLETED_ORDER_TABLE: CompletedOrderTable # define de name of the table to referer in any part, js or the same YML file.
+
+  iamRoleStatements: # Section used to define the especial permissions required by resource block (Final block)
+    # For more details read the docs: https://serverless.com/framework/docs/providers/aws/guide/iam/#custom-iam-roles
+    - Effect: "Allow"
+      Action:
+        - "sqs:SendMessage" # permission required for use Queue
+      # Resource: "arn:aws:sqs:${self:provider.region}:*:PendingOrdersQueue" # explicit permission for own SQS, we comment this because in the next line is the generic mode
+      Resource: "arn:aws:sqs:${self:provider.region}:*:${self:provider.environment.PENDING_ORDER_QUEUE_NAME}" # the queue name in a environment variable
+    - Effect: "Allow"
+      Action: # all permissions to DynamoDB
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:DeleteItem"
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.COMPLETED_ORDER_TABLE}" # we are using the environment variable with the name of the table.
+
+functions: # definition of the lambadas and their triggers, remember a lambda need a trigger
+  hacerPedido: # Lambda name
+    handler: handler.hacerPedido # the JS function defined in handler.js
+    events: # triggers of lambda, can be a api gateway request, DynamoDB event, S3 event, etc.
+      - http: # triggered explicit by http POST request
+          method: post
+          path: pedido
+
+  # be careful with the indent of batchSize attribute
+  prepararPedido: # Lambda name
+    handler: handler.prepararPedido # the JS function defined in handler.js
+    events: # triggers of lambda, can be a api gateway request, DynamoDB event, S3 event, etc.
+      - sqs: # triggered explicit by SQS event
+          arn: # mean Amazon resource name
+            Fn::GetAtt: # Event Add message, when a new message are added on the queue execute this lambda
+              - PendingOrdersQueue # resource name created in self:resources.Resources.PendingOrdersQueue
+              - Arn # needed in Fn::GetAtt: check: https://serverless.com/framework/docs/providers/aws/events/sqs/#sqs-queues
+          batchSize: 1 # number of messages waiting before execute the lambda function, in this case 1 to instantly attend the request, but we can wait to x number of request to execute the lambda.
+
+
+# CloudFormation instructions in CloudFormation notation.
+# ServerLess "deploy" command create the CloudFormation templates in ".serverless" directory and later
+# upload the content to S3, then CloudFormation read the templates and make a provision
+# for the defined resources. [cloudFormation Stack]
+resources:
+  Resources: # instructions of CloudFormation, this section create multiple resources on own AWS account
+    PendingOrdersQueue:  # Name of my Queue resource in CloudFormation, we refer to this resource by this name. e.g. in "iamRoleStatements"
+      Type: "AWS::SQS::Queue" # type of resource in CloudFormation, queuing system, to communicate the lambadas.
+      Properties:
+        QueueName: ${self:provider.environment.PENDING_ORDER_QUEUE_NAME}
+    CompletedOrdersTable: # Name in CloudFormation, we refer to this resource by this name.
+      # we need to define the permissions in the "iamRoleStatements" section on provider block to access with de aws-sdk.
+      Type: "AWS::DynamoDB::Table" # type of resource in CloudFormation.
+      Properties: # Define the properties of the table.
+        AttributeDefinitions: # DynamoDB don't have schema, thus we only need to define the "identifier" attribute
+          - AttributeName: "orderId" # it's like a column name
+            AttributeType: "S" # Type String, needed
+        KeySchema: # assign the attribute as identifier
+          - AttributeName: "orderId"
+            KeyType: "HASH"
+        ProvisionedThroughput: # capability of read and write of the table.
+          # to autoscaling check the plugin: https://github.com/sbstjn/serverless-dynamodb-autoscaling
+          # in the first section of this YML file we put an example of basic configurations and the links for more information
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.COMPLETED_ORDER_TABLE} # we are using a environment variable from provider block

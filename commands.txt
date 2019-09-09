@@ -1,0 +1,6 @@
+sls create --template aws-nodejs --name perdirPizzas
+npm init -y
+sls deploy
+serverless invoke -f hacerPedido -r us-west-1 -d {}
+serverless remove --stage dev --region us-west-1
+sls logs -f prepararPedido -t
