@@ -20,7 +20,7 @@ $ serverless invoke -f FUNCTION_NAME -r us-west-1 -d {}
 
 For delete the AWS resource:
 ```
-serverless remove --stage dev --region us-west-1
+$ serverless remove --stage dev --region us-west-1
 ```
 
 To see the logs in AWS:
