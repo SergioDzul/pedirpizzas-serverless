@@ -17,6 +17,20 @@ const dynamo = new AWS.DynamoDB.DocumentClient(); // Docs:  https://docs.aws.ama
 }
 */
 
+/*
+body form postman request.
+{
+	"name": "Sergio",
+	"address": "Some place",
+	"pizzas": ["margarita", "tropical"]
+}
+ */
+
+/**
+ * Method used to storage the order object in DynamoDB
+ * @param order :Json
+ * @returns :Promise
+ */
 module.exports.saveCompletedOrder = order => {
     console.log('Guardar un pedido fue llamado');
 
@@ -29,4 +43,36 @@ module.exports.saveCompletedOrder = order => {
 
     // the next line save the item in owe Data base, we return a promise for a better control.
     return dynamo.put(params).promise();
+};
+
+
+/**
+ *
+ * @param orderId :String
+ * @returns {PromiseLike<T> | Promise<T>}
+ */
+module.exports.deliverOrder = orderId => {
+    console.log('Enviar una orden fue llamado');
+
+    const params = {
+        TableName: process.env.COMPLETED_ORDER_TABLE,
+        Key: {
+            orderId
+        },
+        ConditionExpression: 'attribute_exists(orderId)', // required, other ways the update aren't accomplished
+        UpdateExpression: 'set delivery_status = :v', // Update query
+        ExpressionAttributeValues: {
+            ':v': 'DELIVERED' // new value
+        },
+        ReturnValues: 'ALL_NEW' // we expect to return all new values.
+    };
+
+    // execute the update query using the client
+    return dynamo
+        .update(params)
+        .promise()
+        .then(response => {
+            console.log('order delivered');
+            return response.Attributes;
+        });
 };

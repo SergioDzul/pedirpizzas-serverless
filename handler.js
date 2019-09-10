@@ -52,7 +52,7 @@ module.exports.prepararPedido = (event, context, callback) => {
     console.log(context);
 
     // remember, this lambda is executed by a Queue add event and we config
-    // to execute with a batchSize if 1. In the case of the batchSize are for example 5
+    // to execute with a batchSize of 1. In the case of the batchSize are for example 5,
     // Records[] contain 5 elements an maybe you need a foreach loop.
     const order = JSON.parse(event.Records[0].body); // Records[0] because always the length is 1 for this case.
 
@@ -67,7 +67,35 @@ module.exports.prepararPedido = (event, context, callback) => {
         });
 };
 
+module.exports.enviarPedido = (event, context, callback) => {
+    console.log("enviarPedido fue llamada");
 
+    // remember, this lambda is executed by a DynamoDB stream add event and we config
+    // to execute with a batchSize of 1. In the case of the batchSize are for example 5,
+    // Records[] contain 5 elements an maybe you need a foreach loop.
+    const record = event.Records[0];
+    // need to check if is a insert event in the database.
+    if (record.eventName === 'INSERT') {
+        console.log('deliverOrder');
+
+        // The record also contain the item storage in the database, the next line have a example of how to take some
+        // attribute, the "S" attribute is the type in de DB definition, check the serverless.yml: 103
+        const orderId = record.dynamodb.Keys.orderId.S;
+
+        orderMetadataManager
+            .deliverOrder(orderId) // deliverOrder is a method defined in orderMetadataManager.js
+            .then(data => {
+                console.log(data);
+                callback();
+            })
+            .catch(error => {
+                callback(error);
+            });
+    } else {
+        console.log('is not a new record');
+        callback();
+    }
+};
 
 /**
  * Method used to make a standard response

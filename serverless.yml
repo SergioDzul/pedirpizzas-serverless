@@ -72,6 +72,17 @@ functions: # definition of the lambadas and their triggers, remember a lambda ne
               - Arn # needed in Fn::GetAtt: check: https://serverless.com/framework/docs/providers/aws/events/sqs/#sqs-queues
           batchSize: 1 # number of messages waiting before execute the lambda function, in this case 1 to instantly attend the request, but we can wait to x number of request to execute the lambda.
 
+  enviarPedido: # Lambda name
+    handler: handler.enviarPedido # the JS function defined in handler.js
+    events: # triggers of lambda, can be a api gateway request, DynamoDB event, S3 event, etc.
+      - stream: # triggered explicit by DynamoDB Stream event
+          type: dynamodb
+          batchSize: 1 # number of events in the database to wait before to execute the lambda function.
+          startingPosition: LATEST # in the case of a batchSize diferent e.i. 5 we are gone a process the list starting with the 4 index
+          arn: # mean Amazon resource name
+            # name of the table in CloudFormation, check the resources block.
+            # needed in Fn::GetAtt: check: https://serverless.com/framework/docs/providers/aws/events/streams/#dynamodb--kinesis-streams
+            Fn::GetAtt: [CompletedOrdersTable, StreamArn]
 
 # CloudFormation instructions in CloudFormation notation.
 # ServerLess "deploy" command create the CloudFormation templates in ".serverless" directory and later
@@ -99,3 +110,5 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: ${self:provider.environment.COMPLETED_ORDER_TABLE} # we are using a environment variable from provider block
+        StreamSpecification: # for streaming DynamoDB, this can help us to execute a specific actions when a DB event occurs, for more information check the official doc: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html
+          StreamViewType: NEW_IMAGE # This config is only for a create event in this table.
