@@ -14,21 +14,15 @@ module.exports.hacerPedido = (event, context, callback) => {
     console.log("HacerPedido fue llamada.");
 
     const orderId = uuidv1(); // generar a UUID
-
     const request = JSON.parse(event.body); // get the POST parameters of the request
 
-    try{
-        const order = { // create the order structure
-            orderId : orderId,
-            name: request.name,
-            address: request.address,
-            pizzas: request.pizzas,
-            timestamp: Date.now()
-        };
-    } catch (e) {
-        sendResponse(500, e.message, callback);
-        return;
-    }
+    const order = { // create the order structure
+        orderId : orderId,
+        name: request.name,
+        address: request.address,
+        pizzas: request.pizzas,
+        timestamp: Date.now()
+    };
 
     const params = {
         MessageBody: JSON.stringify(order),
