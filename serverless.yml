@@ -84,6 +84,13 @@ functions: # definition of the lambadas and their triggers, remember a lambda ne
             # needed in Fn::GetAtt: check: https://serverless.com/framework/docs/providers/aws/events/streams/#dynamodb--kinesis-streams
             Fn::GetAtt: [CompletedOrdersTable, StreamArn]
 
+  estadoPedido: # Lambda name
+    handler: handler.estadoPedido
+    events:
+      - http:
+          method: get
+          path: pedido/{orderId} # the orderId is on the url.
+
 # CloudFormation instructions in CloudFormation notation.
 # ServerLess "deploy" command create the CloudFormation templates in ".serverless" directory and later
 # upload the content to S3, then CloudFormation read the templates and make a provision

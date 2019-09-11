@@ -55,7 +55,7 @@ module.exports.deliverOrder = orderId => {
     console.log('Enviar una orden fue llamado');
 
     const params = {
-        TableName: process.env.COMPLETED_ORDER_TABLE,
+        TableName: process.env.COMPLETED_ORDER_TABLE, // defined in the YML file
         Key: {
             orderId
         },
@@ -74,5 +74,24 @@ module.exports.deliverOrder = orderId => {
         .then(response => {
             console.log('order delivered');
             return response.Attributes;
+        });
+};
+
+module.exports.getOrder = orderId => {
+    console.log('El metodo obtener una orden fue llamado');
+
+    const kwards = {
+        TableName: process.env.COMPLETED_ORDER_TABLE, // defined in the YML file
+        Key: {
+            orderId
+        }
+    };
+
+    return dynamo
+        .get(kwards)
+        .promise()
+        .then(item => {
+            console.log(item);
+            return item.Item;
         });
 };

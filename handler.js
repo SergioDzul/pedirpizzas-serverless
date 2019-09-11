@@ -97,6 +97,26 @@ module.exports.enviarPedido = (event, context, callback) => {
     }
 };
 
+module.exports.estadoPedido = (event, context, callback) => {
+    console.log('Estado pedido fue llamado');
+    // to take the orderId included in the url, first check if pathParameters have elements and later take the parameter.
+    const orderId = event.pathParameters && event.pathParameters.orderId;
+    if (orderId !== null) {
+        orderMetadataManager
+            .getOrder(orderId) // is a method defined in orderMetadataManager.js
+            .then(order => {
+                // to aggregate some variable in a string use ` to define the string and the variable need to be between ${}
+                sendResponse(200, `El estado de la orden: ${orderId} es ${order.delivery_status}`, callback);
+            })
+            .catch(error => {
+                sendResponse(500, 'Hubo un error al procesar el pedido', callback);
+            });
+    } else {
+        sendResponse(400, 'Falta el orderId', callback);
+    }
+};
+
+
 /**
  * Method used to make a standard response
  * @param statusCode Integer : e.g. 200 ,500, 403
